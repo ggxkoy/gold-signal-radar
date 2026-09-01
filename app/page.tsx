@@ -15,18 +15,18 @@ type GoldPrice = { price: number; updatedAt: string };
 type FxRate = { rates: { CNY: number } };
 
 const RULES: Rule[] = [
-  { label: '降息预期', direction: '涨', weight: 3, reason: '降低持有黄金的机会成本', pattern: /降息|鸽派|宽松|收益率(?:下跌|下降|回落)/i },
+  { label: '降息预期', direction: '涨', weight: 3, reason: '降低持有黄金的机会成本', pattern: /降息|鸽派|宽松|收益率(?:下跌|下降|回落)|rate cuts?|dovish|yields? (?:fall|drop|retreat)/i },
   { label: '降息预期升温', direction: '涨', weight: 4, reason: '未来利率路径更宽松', pattern: /上调(?:美联储)?降息|降息预期(?:升温|增加)|提前降息/i },
   { label: '实际利率走低', direction: '涨', weight: 4, reason: '无息资产的相对吸引力上升', pattern: /实际利率(?:下降|走低|转负)|负利率/i },
-  { label: '美元走弱', direction: '涨', weight: 3, reason: '美元计价黄金获得支撑', pattern: /美元(?:下跌|走弱|回落)|美元指数(?:下跌|走弱)/i },
-  { label: '央行购金', direction: '涨', weight: 4, reason: '结构性买盘增加', pattern: /央行(?:增持|购买|买入|购金)|黄金储备(?:增加|上升)/i },
-  { label: '避险升温', direction: '涨', weight: 3, reason: '不确定性推升避险需求', pattern: /战争|冲突升级|空袭|制裁|地缘政治|金融危机|银行危机|衰退|硬着陆/i },
-  { label: '通胀升温', direction: '涨', weight: 2, reason: '购买力对冲需求可能上升', pattern: /通胀(?:上升|升温|超预期|反弹)|CPI超预期|油价暴涨/i },
+  { label: '美元走弱', direction: '涨', weight: 3, reason: '美元计价黄金获得支撑', pattern: /美元(?:下跌|走弱|回落)|美元指数(?:下跌|走弱)|dollar (?:falls|weakens|slides)/i },
+  { label: '央行购金', direction: '涨', weight: 4, reason: '结构性买盘增加', pattern: /央行(?:增持|购买|买入|购金)|黄金储备(?:增加|上升)|central banks? (?:buy|add|boost).{0,20}gold/i },
+  { label: '避险升温', direction: '涨', weight: 3, reason: '不确定性推升避险需求', pattern: /战争|冲突升级|空袭|制裁|地缘政治|金融危机|银行危机|衰退|硬着陆|war|conflict escalat|airstrike|sanctions?|geopolit|financial crisis|banking crisis|recession|hard landing/i },
+  { label: '通胀升温', direction: '涨', weight: 2, reason: '购买力对冲需求可能上升', pattern: /通胀(?:上升|升温|超预期|反弹)|CPI超预期|油价暴涨|inflation (?:rises|heats|accelerates|above)|cpi (?:beats|above)|oil (?:surges|spikes)/i },
   { label: 'ETF流入', direction: '涨', weight: 3, reason: '投资资金直接增加黄金需求', pattern: /黄金ETF(?:流入|增持)|资金流入黄金|投机买盘/i },
-  { label: '加息预期', direction: '跌', weight: 3, reason: '提高持有黄金的机会成本', pattern: /加息|鹰派|紧缩|收益率(?:上涨|上升|走高)/i },
+  { label: '加息预期', direction: '跌', weight: 3, reason: '提高持有黄金的机会成本', pattern: /加息|鹰派|紧缩|收益率(?:上涨|上升|走高)|rate hikes?|hawkish|yields? (?:rise|climb|jump)/i },
   { label: '降息预期降温', direction: '跌', weight: 4, reason: '利率可能在高位维持更久', pattern: /下调(?:美联储)?降息|降息预期(?:降温|减少)|推迟降息|延后降息/i },
   { label: '实际利率走高', direction: '跌', weight: 4, reason: '有息资产相对更有吸引力', pattern: /实际利率(?:上升|走高|转正)/i },
-  { label: '美元走强', direction: '跌', weight: 3, reason: '美元计价黄金通常承压', pattern: /美元(?:上涨|走强)|美元指数(?:上涨|走强)/i },
+  { label: '美元走强', direction: '跌', weight: 3, reason: '美元计价黄金通常承压', pattern: /美元(?:上涨|走强)|美元指数(?:上涨|走强)|dollar (?:rises|strengthens|gains)/i },
   { label: '央行售金', direction: '跌', weight: 4, reason: '官方供给增加、结构性需求减弱', pattern: /央行(?:减持|出售|卖出|售金)|黄金储备(?:下降|减少)/i },
   { label: '风险缓和', direction: '跌', weight: 3, reason: '避险溢价回落', pattern: /停火|和平协议|冲突缓和|风险偏好回升|软着陆/i },
   { label: '通胀降温', direction: '跌', weight: 2, reason: '购买力对冲需求减弱', pattern: /通胀(?:下降|降温|低于预期)|CPI低于预期|油价大跌/i },
@@ -180,7 +180,7 @@ export default function Home() {
         </section>
 
         <footer className="mt-8 flex flex-col gap-2 border-t border-border/70 pt-4 text-[11px] leading-5 text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-          <p>金价：Gold API · 汇率：ExchangeRate-API · 新闻：Google News RSS · 仅供研究。</p>
+          <p>金价：Gold API · 汇率：ExchangeRate-API · 新闻：公开财经 RSS · 仅供研究。</p>
           <p>框架：实际利率 / 美元 / 央行需求 / 避险 / 通胀 / ETF资金</p>
         </footer>
 
