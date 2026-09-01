@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="116" fill="#181713"/>
+  <circle cx="256" cy="256" r="164" fill="none" stroke="#c9a247" stroke-width="18" opacity=".45"/>
+  <circle cx="256" cy="256" r="112" fill="none" stroke="#c9a247" stroke-width="12" opacity=".7"/>
+  <path d="M88 340c58-34 93-29 139 3 50 35 99 31 197-40" fill="none" stroke="#f4d985" stroke-width="18" stroke-linecap="round"/>
+  <text x="256" y="272" text-anchor="middle" font-family="Georgia,serif" font-size="112" font-weight="700" fill="#f3e2b2">Au</text>
+</svg>

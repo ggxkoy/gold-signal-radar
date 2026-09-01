@@ -1,0 +1,42 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background); --color-foreground: var(--foreground);
+  --color-card: var(--card); --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover); --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary); --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary); --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted); --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent); --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive); --color-border: var(--border);
+  --color-input: var(--input); --color-ring: var(--ring); --color-up: var(--up); --color-down: var(--down);
+  --font-sans: var(--font-geist-sans); --font-mono: var(--font-geist-mono); --font-heading: var(--font-geist-sans);
+  --radius-sm: calc(var(--radius) * .6); --radius-md: calc(var(--radius) * .8); --radius-lg: var(--radius); --radius-xl: calc(var(--radius) * 1.35); --radius-2xl: calc(var(--radius) * 1.7);
+}
+
+:root {
+  --background: oklch(0.17 0.012 80); --foreground: oklch(0.94 0.015 86);
+  --card: oklch(0.205 0.012 78); --card-foreground: oklch(0.94 0.015 86);
+  --popover: oklch(0.205 0.012 78); --popover-foreground: oklch(0.94 0.015 86);
+  --primary: oklch(0.76 0.115 84); --primary-foreground: oklch(0.18 0.018 76);
+  --secondary: oklch(0.25 0.014 78); --secondary-foreground: oklch(0.94 0.015 86);
+  --muted: oklch(0.25 0.014 78); --muted-foreground: oklch(0.67 0.02 82);
+  --accent: oklch(0.29 0.025 78); --accent-foreground: oklch(0.94 0.015 86);
+  --destructive: oklch(0.67 0.19 25); --border: oklch(0.32 0.015 78);
+  --input: oklch(0.32 0.015 78); --ring: oklch(0.76 0.115 84);
+  --up: oklch(0.74 0.14 153); --down: oklch(0.70 0.17 28); --radius: .75rem;
+}
+
+@layer base {
+  * { @apply border-border outline-ring/50; }
+  html { @apply font-sans; background: var(--background); }
+  body { @apply bg-background text-foreground antialiased; background-image: radial-gradient(circle at 10% 0%, rgba(206,162,61,.09), transparent 31rem), linear-gradient(rgba(255,255,255,.012) 1px, transparent 1px); background-size: auto, 100% 42px; }
+  button, textarea { -webkit-tap-highlight-color: transparent; }
+}
+
+.gold-surface { background: radial-gradient(circle at 80% 0%, rgba(255,255,255,.18), transparent 19rem), linear-gradient(135deg, #806525 0%, #b58a2e 45%, #73551c 100%); box-shadow: inset 0 1px 0 rgba(255,255,255,.18), 0 22px 60px rgba(0,0,0,.19); }
+.font-serif { font-family: Georgia, 'Times New Roman', serif; }
