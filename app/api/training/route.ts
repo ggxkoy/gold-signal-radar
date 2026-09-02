@@ -1,10 +1,11 @@
-import { ensureSchema } from '@/db';
+import { getD1 } from '@/db';
 import { analyse, ruleMultiplier, type RuleStat } from '@/lib/gold-rules';
 import { fetchLiveNews } from '@/lib/live-news';
 import { fetchMarketData } from '@/lib/market-data';
 
 const HORIZON_HOURS = 24;
 const HORIZON_MS = HORIZON_HOURS * 60 * 60 * 1_000;
+const MIN_MOVE_CNY_GRAM = 3.8;
 
 type RuleRow = { rule_label: string; samples: number; hits: number };
 
@@ -36,10 +37,11 @@ async function getDashboard(db: D1Database, ruleStats: RuleStat[]) {
     SELECT
       COUNT(*) AS total,
       SUM(CASE WHEN settled_at IS NULL THEN 1 ELSE 0 END) AS pending,
-      SUM(CASE WHEN settled_at IS NOT NULL THEN 1 ELSE 0 END) AS settled,
+      SUM(CASE WHEN settled_at IS NOT NULL AND correct IS NOT NULL THEN 1 ELSE 0 END) AS settled,
+      SUM(CASE WHEN settled_at IS NOT NULL AND correct IS NULL THEN 1 ELSE 0 END) AS neutral,
       COALESCE(SUM(CASE WHEN correct = 1 THEN 1 ELSE 0 END), 0) AS hits
     FROM predictions
-  `).first<{ total: number; pending: number; settled: number; hits: number }>();
+  `).first<{ total: number; pending: number; settled: number; neutral: number; hits: number }>();
 
   const { results: recentPredictions } = await db.prepare(`
     SELECT id, headline, source, predicted_at, due_at, predicted_direction,
@@ -58,9 +60,11 @@ async function getDashboard(db: D1Database, ruleStats: RuleStat[]) {
       total: Number(summary?.total ?? 0),
       pending: Number(summary?.pending ?? 0),
       settled,
+      neutral: Number(summary?.neutral ?? 0),
       hits,
       accuracy: settled ? hits / settled : null,
       minimumSample: 30,
+      minimumMoveCnyGram: MIN_MOVE_CNY_GRAM,
     },
     ruleStats,
     recentPredictions,
@@ -69,7 +73,7 @@ async function getDashboard(db: D1Database, ruleStats: RuleStat[]) {
 
 export async function POST() {
   try {
-    const db = await ensureSchema();
+    const db = getD1();
     const [market, items] = await Promise.all([fetchMarketData(), fetchLiveNews()]);
     const now = Date.now();
 
@@ -85,13 +89,25 @@ export async function POST() {
       UPDATE predictions
       SET settled_at = ?,
           exit_cny_gram = ?,
-          actual_direction = CASE WHEN ? >= entry_cny_gram THEN '涨' ELSE '跌' END,
+          actual_direction = CASE
+            WHEN ? - entry_cny_gram >= ? THEN '涨'
+            WHEN ? - entry_cny_gram <= -? THEN '跌'
+            ELSE NULL
+          END,
           correct = CASE
-            WHEN predicted_direction = CASE WHEN ? >= entry_cny_gram THEN '涨' ELSE '跌' END THEN 1
+            WHEN ABS(? - entry_cny_gram) < ? THEN NULL
+            WHEN predicted_direction = CASE WHEN ? - entry_cny_gram >= ? THEN '涨' ELSE '跌' END THEN 1
             ELSE 0
           END
       WHERE settled_at IS NULL AND due_at <= ?
-    `).bind(now, market.cnyGram, market.cnyGram, market.cnyGram, now).run();
+    `).bind(
+      now, market.cnyGram,
+      market.cnyGram, MIN_MOVE_CNY_GRAM,
+      market.cnyGram, MIN_MOVE_CNY_GRAM,
+      market.cnyGram, MIN_MOVE_CNY_GRAM,
+      market.cnyGram, MIN_MOVE_CNY_GRAM,
+      now,
+    ).run();
 
     const ruleStats = await getRuleStats(db);
 

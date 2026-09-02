@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#181713">
+  <title>金价雷达 · 大陆访问版</title>
+  <meta name="description" content="人民币金价、宏观新闻和可验证的24小时涨跌预测。">
+  <link rel="icon" href="icon.svg">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="shell">
+    <header><div class="brand"><span class="brand-mark">Au</span><div><b>金价雷达</b><small>GOLD SIGNAL · 大陆访问版</small></div></div><span class="online"><i></i>监测中</span></header>
+
+    <section class="hero-grid">
+      <article class="price-card">
+        <div class="eyebrow">AU / CNY · 人民币金价</div>
+        <div class="price-line"><strong id="cnyPrice">—</strong><span>元/克</span></div>
+        <p id="priceDetail">正在连接实时价格…</p>
+        <button id="refresh" aria-label="刷新">↻</button>
+      </article>
+      <article class="signal-card">
+        <div><span class="eyebrow">当前规则信号</span><small>不是准确率</small></div>
+        <div class="signal-row"><strong id="direction" class="up">涨</strong><div><b id="strength">0</b><small>规则强度 / 100</small></div></div>
+      </article>
+    </section>
+
+    <section class="work-grid">
+      <article class="panel">
+        <h2>输入一条可能影响金价的新闻</h2>
+        <textarea id="newsInput" rows="5">美国非农就业低于预期，市场上调美联储降息押注，美元指数回落。</textarea>
+        <div class="examples"><button data-example="美国非农就业低于预期，市场上调美联储降息押注，美元指数回落。">示例 1</button><button data-example="美国通胀超预期反弹，美债收益率走高，市场下调降息预期。">示例 2</button></div>
+      </article>
+      <article class="panel">
+        <div class="panel-title"><div><span class="eyebrow">方向拆解</span><p id="scoreline">利多 0 · 利空 0</p></div><span id="netScore" class="pill">净分 0</span></div>
+        <div id="factors" class="factor-list"></div>
+        <p class="notice">规则信号只反映新闻的第一阶影响，不构成投资建议。</p>
+      </article>
+    </section>
+
+    <section class="panel lab">
+      <div class="lab-head"><div><h2>准确度实验室 <span class="pill">24小时结算</span></h2><p>每克上涨 ≥¥3.8 才算涨，下跌 ≤−¥3.8 才算跌；中间全部记为震荡，不进入命中率。</p></div><span class="warming">样本积累中</span></div>
+      <div class="metrics"><div><small>已结算</small><b id="settled">0</b><span>最低观察 30</span></div><div><small>真实命中率</small><b id="accuracy">待结算</b><span id="hitRatio">尚无到期样本</span></div><div><small>待结算</small><b id="pending">0</b><span>自动写入台账</span></div><div><small>震荡剔除</small><b id="neutral">0</b><span>幅度小于 ¥3.8</span></div></div>
+      <h3>最近预测台账</h3><div id="ledger" class="ledger"></div>
+    </section>
+
+    <section class="news-section"><div class="section-head"><div><h2>实时相关新闻</h2><p id="dataTime">数据更新中…</p></div></div><div id="newsList" class="news-grid"></div></section>
+
+    <footer>训练口径：人民币/克 · 24小时 · ±¥3.8 死区<br>静态镜像约每15分钟更新新闻与预测，金价每2分钟刷新。</footer>
+  </main>
+  <script src="app.js" defer></script>
+</body>
+</html>

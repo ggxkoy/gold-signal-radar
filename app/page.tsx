@@ -49,15 +49,17 @@ type TrainingPayload = {
     total: number;
     pending: number;
     settled: number;
+    neutral: number;
     hits: number;
     accuracy: number | null;
     minimumSample: number;
+    minimumMoveCnyGram: number;
   };
   ruleStats: RuleStat[];
   recentPredictions: PredictionRecord[];
 };
 
-const EMPTY_SUMMARY = { total: 0, pending: 0, settled: 0, hits: 0, accuracy: null, minimumSample: 30 };
+const EMPTY_SUMMARY = { total: 0, pending: 0, settled: 0, neutral: 0, hits: 0, accuracy: null, minimumSample: 30, minimumMoveCnyGram: 3.8 };
 const EXAMPLES = [
   '美国非农就业低于预期，市场上调美联储降息押注，美元指数回落。',
   '美国通胀超预期反弹，美债收益率走高，市场下调降息预期。',
@@ -186,14 +188,15 @@ export default function Home() {
           <Card className="border-primary/20 bg-card/80 shadow-none">
             <CardContent className="p-5 sm:p-6">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div><div className="flex items-center gap-2"><FlaskConical className="size-4 text-primary" /><h2 className="font-medium">准确度实验室</h2><Badge variant="outline">24小时结算</Badge></div><p className="mt-2 max-w-2xl text-xs leading-5 text-muted-foreground">原来的“92%”已更正为规则强度，不再冒充准确率。系统记录预测时金价，24小时后用首次观察到的人民币/克价格结算。</p></div>
+                <div><div className="flex items-center gap-2"><FlaskConical className="size-4 text-primary" /><h2 className="font-medium">准确度实验室</h2><Badge variant="outline">24小时结算</Badge></div><p className="mt-2 max-w-2xl text-xs leading-5 text-muted-foreground">系统记录预测时金价。24小时后，只有每克涨跌幅达到 ¥{summary.minimumMoveCnyGram.toFixed(1)} 才结算方向；中间区域记为震荡，不进入命中率。</p></div>
                 {summary.settled < summary.minimumSample && <Badge className="bg-amber-300/10 text-amber-200">样本积累中</Badge>}
               </div>
 
-              <div className="mt-5 grid grid-cols-3 gap-2">
+              <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
                 <div className="rounded-xl border border-border/70 bg-background/45 p-3 sm:p-4"><p className="text-[11px] text-muted-foreground">已结算</p><p className="mt-1 text-2xl font-semibold">{summary.settled}</p><p className="mt-1 text-[10px] text-muted-foreground">最低观察 {summary.minimumSample}</p></div>
                 <div className="rounded-xl border border-border/70 bg-background/45 p-3 sm:p-4"><p className="text-[11px] text-muted-foreground">真实命中率</p><p className="mt-1 text-2xl font-semibold">{percent(summary.accuracy)}</p><p className="mt-1 text-[10px] text-muted-foreground">{summary.settled ? `${summary.hits} / ${summary.settled}` : '尚无到期样本'}</p></div>
                 <div className="rounded-xl border border-border/70 bg-background/45 p-3 sm:p-4"><p className="text-[11px] text-muted-foreground">待结算</p><p className="mt-1 text-2xl font-semibold">{summary.pending}</p><p className="mt-1 text-[10px] text-muted-foreground">自动写入台账</p></div>
+                <div className="rounded-xl border border-border/70 bg-background/45 p-3 sm:p-4"><p className="text-[11px] text-muted-foreground">震荡剔除</p><p className="mt-1 text-2xl font-semibold">{summary.neutral}</p><p className="mt-1 text-[10px] text-muted-foreground">幅度小于 ¥{summary.minimumMoveCnyGram.toFixed(1)}</p></div>
               </div>
 
               {!trainingAvailable && <div className="mt-4 rounded-lg border border-amber-300/20 bg-amber-300/5 p-3 text-xs text-amber-100">训练台账暂时不可用；实时金价与规则判断仍可使用。</div>}
@@ -203,10 +206,11 @@ export default function Home() {
                 <div className="space-y-2">
                   {recentPredictions.length ? recentPredictions.slice(0, 6).map((prediction) => {
                     const settled = prediction.settled_at !== null;
+                    const neutral = settled && prediction.correct === null;
                     return <div key={prediction.id} className="grid grid-cols-[auto_1fr_auto] items-center gap-3 rounded-lg border border-border/60 bg-background/35 px-3 py-2.5">
-                      {settled ? prediction.correct ? <CheckCircle2 className="size-4 text-up" /> : <XCircle className="size-4 text-down" /> : <CircleDashed className="size-4 text-muted-foreground" />}
+                      {neutral ? <Scale className="size-4 text-muted-foreground" /> : settled ? prediction.correct ? <CheckCircle2 className="size-4 text-up" /> : <XCircle className="size-4 text-down" /> : <CircleDashed className="size-4 text-muted-foreground" />}
                       <div className="min-w-0"><p className="truncate text-xs">{prediction.headline}</p><p className="mt-1 text-[10px] text-muted-foreground">预测 {prediction.predicted_direction} · 入场 ¥{prediction.entry_cny_gram.toFixed(2)} · {settled ? `结算 ¥${prediction.exit_cny_gram?.toFixed(2)}` : `${new Date(prediction.due_at).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} 到期`}</p></div>
-                      <Badge variant="outline" className={settled ? prediction.correct ? 'border-up/25 text-up' : 'border-down/25 text-down' : 'text-muted-foreground'}>{settled ? prediction.correct ? '命中' : '未命中' : '等待'}</Badge>
+                      <Badge variant="outline" className={neutral ? 'text-muted-foreground' : settled ? prediction.correct ? 'border-up/25 text-up' : 'border-down/25 text-down' : 'text-muted-foreground'}>{neutral ? '震荡' : settled ? prediction.correct ? '命中' : '未命中' : '等待'}</Badge>
                     </div>;
                   }) : <div className="rounded-lg border border-dashed border-border p-4 text-center text-xs text-muted-foreground"><Timer className="mx-auto mb-2 size-4" />正在建立第一批 24 小时预测样本。</div>}
                 </div>
@@ -215,7 +219,7 @@ export default function Home() {
               <details className="mt-4 border-t border-border/70 pt-4 text-xs text-muted-foreground">
                 <summary className="cursor-pointer font-medium text-foreground">查看规则训练方法</summary>
                 <div className="mt-3 grid gap-4 sm:grid-cols-[1fr_1.2fr]">
-                  <p className="leading-6">同一规则至少结算 20 次后才允许微调权重，并使用平滑处理；权重最多只增减 25%，避免小样本把模型带偏。整体至少 30 个结算样本后，命中率才具备初步参考意义。</p>
+                  <p className="leading-6">每克变化不足 ¥{summary.minimumMoveCnyGram.toFixed(1)} 的样本先剔除。同一规则至少有效结算 20 次后才允许微调权重；权重最多只增减 25%。整体至少 30 个有效样本后，命中率才具备初步参考意义。</p>
                   <div className="space-y-1.5">{ruleStats.length ? ruleStats.slice(0, 6).map((stat) => <div key={stat.ruleLabel} className="flex items-center justify-between gap-3"><span>{stat.ruleLabel}</span><span className="tabular-nums">n={stat.samples} · {percent(stat.accuracy)} · 权重×{stat.multiplier.toFixed(2)}</span></div>) : <p>暂无已结算的规则样本。</p>}</div>
                 </div>
               </details>
@@ -241,7 +245,7 @@ export default function Home() {
           </div>
         </section>
 
-        <footer className="mt-8 flex flex-col gap-2 border-t border-border/70 pt-4 text-[11px] leading-5 text-muted-foreground sm:flex-row sm:items-center sm:justify-between"><p>金价：Gold API · 汇率：ExchangeRate-API · 新闻：公开财经 RSS · 仅供研究。</p><p>训练口径：人民币/克 · 24小时方向 · 首次到期后观察价</p></footer>
+        <footer className="mt-8 flex flex-col gap-2 border-t border-border/70 pt-4 text-[11px] leading-5 text-muted-foreground sm:flex-row sm:items-center sm:justify-between"><p>金价：Gold API · 汇率：ExchangeRate-API · 新闻：公开财经 RSS · 仅供研究。</p><p>训练口径：人民币/克 · 24小时 · ±¥{summary.minimumMoveCnyGram.toFixed(1)} 死区</p></footer>
 
         <details className="mt-3 rounded-xl border border-border/60 bg-card/45 px-4 py-3 text-xs text-muted-foreground">
           <summary className="cursor-pointer select-none font-medium text-foreground">规则来源与局限</summary>
