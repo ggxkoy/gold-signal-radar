@@ -9,6 +9,7 @@ import {
   Clock3,
   ExternalLink,
   FlaskConical,
+  Gauge,
   Newspaper,
   RefreshCw,
   Scale,
@@ -25,6 +26,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { analyse, type RuleStat } from '@/lib/gold-rules';
 import type { LiveNews } from '@/lib/live-news';
 import type { MarketData } from '@/lib/market-data';
+import { deriveMarketSentiment, type MarketMomentum } from '@/lib/market-sentiment';
 
 type PredictionRecord = {
   id: number;
@@ -43,6 +45,7 @@ type PredictionRecord = {
 
 type TrainingPayload = {
   market: MarketData;
+  marketMomentum: MarketMomentum;
   items: LiveNews[];
   horizonHours: number;
   summary: {
@@ -73,6 +76,7 @@ export default function Home() {
   const [news, setNews] = useState(EXAMPLES[0]);
   const [liveNews, setLiveNews] = useState<LiveNews[]>([]);
   const [market, setMarket] = useState<MarketData | null>(null);
+  const [marketMomentum, setMarketMomentum] = useState<MarketMomentum>(null);
   const [summary, setSummary] = useState(EMPTY_SUMMARY);
   const [ruleStats, setRuleStats] = useState<RuleStat[]>([]);
   const [recentPredictions, setRecentPredictions] = useState<PredictionRecord[]>([]);
@@ -80,6 +84,10 @@ export default function Home() {
   const [trainingAvailable, setTrainingAvailable] = useState(true);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
   const result = useMemo(() => analyse(news, ruleStats), [news, ruleStats]);
+  const sentiment = useMemo(
+    () => deriveMarketSentiment(liveNews, ruleStats, marketMomentum),
+    [liveNews, ruleStats, marketMomentum],
+  );
   const isUp = result.direction === '涨';
 
   const fallbackRefresh = useCallback(async () => {
@@ -107,6 +115,7 @@ export default function Home() {
       if (!response.ok) throw new Error('training unavailable');
       const data = await response.json() as TrainingPayload;
       setMarket(data.market);
+      setMarketMomentum(data.marketMomentum);
       setLiveNews(data.items);
       setSummary(data.summary);
       setRuleStats(data.ruleStats);
@@ -159,6 +168,43 @@ export default function Home() {
               <div className="flex items-end justify-between gap-3">
                 <div className={`flex items-center gap-2 font-serif text-5xl ${isUp ? 'text-up' : 'text-down'}`}>{isUp ? <ArrowUpRight className="size-9" /> : <ArrowDownRight className="size-9" />}{result.direction}</div>
                 <div className="pb-1 text-right"><p className="text-xl font-semibold">{result.signalStrength}</p><p className="text-xs text-muted-foreground">规则强度 / 100</p></div>
+              </div>
+            </CardContent>
+          </Card>
+        </section>
+
+        <section className="mb-5">
+          <Card className="border-primary/20 bg-card/80 shadow-none">
+            <CardContent className="p-5 sm:p-6">
+              <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+                <div className="min-w-0 lg:max-w-[430px]">
+                  <div className="flex items-center gap-2">
+                    <Gauge className="size-4 text-primary" />
+                    <h2 className="font-medium">黄金市场情绪</h2>
+                    <Badge variant="outline">不是准确率</Badge>
+                  </div>
+                  <div className="mt-3 flex items-end gap-3">
+                    <span className={`font-serif text-4xl ${sentiment.score > 19 ? 'text-up' : sentiment.score < -19 ? 'text-down' : 'text-foreground'}`}>{sentiment.label}</span>
+                    <span className="pb-1 text-sm tabular-nums text-muted-foreground">{sentiment.score > 0 ? '+' : ''}{sentiment.score} / 100</span>
+                  </div>
+                  <p className="mt-2 text-xs leading-5 text-muted-foreground">置信度 {sentiment.confidence} · 命中 {sentiment.relevantNews} 条有效新闻{marketMomentum ? ` · ${marketMomentum.hours}小时价格动量` : ' · 价格历史积累中'}</p>
+                </div>
+
+                <div className="w-full flex-1 lg:max-w-[610px]">
+                  <div className="relative h-2 overflow-visible rounded-full bg-gradient-to-r from-down/70 via-muted to-up/70">
+                    <span className="absolute left-1/2 top-[-4px] h-4 w-px bg-foreground/30" />
+                    <span className="absolute top-1/2 size-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-background bg-foreground shadow" style={{ left: `${(sentiment.score + 100) / 2}%` }} />
+                  </div>
+                  <div className="mt-2 flex justify-between text-[10px] text-muted-foreground"><span>偏空</span><span>中性</span><span>偏多</span></div>
+                  <div className="mt-4 grid grid-cols-3 gap-2">
+                    {[
+                      ['宏观新闻', sentiment.components.macro],
+                      ['避险/资金', sentiment.components.riskAndFlow],
+                      ['价格动量', sentiment.components.momentum],
+                    ].map(([label, value]) => <div key={String(label)} className="rounded-lg border border-border/65 bg-background/40 px-3 py-2"><p className="text-[10px] text-muted-foreground">{label}</p><p className={`mt-1 text-sm font-semibold tabular-nums ${Number(value) > 0 ? 'text-up' : Number(value) < 0 ? 'text-down' : ''}`}>{Number(value) > 0 ? '+' : ''}{value}</p></div>)}
+                  </div>
+                  <p className="mt-3 truncate text-[11px] text-muted-foreground">主要驱动：{sentiment.drivers.join(' · ') || '暂无方向一致的有效信号'}</p>
+                </div>
               </div>
             </CardContent>
           </Card>

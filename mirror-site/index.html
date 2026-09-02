@@ -26,6 +26,24 @@
       </article>
     </section>
 
+    <section class="panel sentiment-panel">
+      <div class="sentiment-copy">
+        <div class="sentiment-title"><h2>黄金市场情绪</h2><span class="pill">不是准确率</span></div>
+        <div class="sentiment-value"><strong id="sentimentLabel">中性</strong><span id="sentimentScore">0 / 100</span></div>
+        <p id="sentimentConfidence">置信度较低 · 数据积累中</p>
+      </div>
+      <div class="sentiment-detail">
+        <div class="sentiment-meter" aria-label="市场情绪从偏空到偏多"><i></i><b id="sentimentMarker" style="left:50%"></b></div>
+        <div class="meter-labels"><span>偏空</span><span>中性</span><span>偏多</span></div>
+        <div class="sentiment-parts">
+          <div><small>宏观新闻</small><b id="macroScore">0</b></div>
+          <div><small>避险/资金</small><b id="riskScore">0</b></div>
+          <div><small>价格动量</small><b id="momentumScore">0</b></div>
+        </div>
+        <p id="sentimentDrivers" class="sentiment-drivers">主要驱动：暂无方向一致的有效信号</p>
+      </div>
+    </section>
+
     <section class="work-grid">
       <article class="panel">
         <h2>输入一条可能影响金价的新闻</h2>

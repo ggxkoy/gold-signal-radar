@@ -6,6 +6,7 @@ import { fetchMarketData } from '@/lib/market-data';
 const HORIZON_HOURS = 24;
 const HORIZON_MS = HORIZON_HOURS * 60 * 60 * 1_000;
 const MIN_MOVE_CNY_GRAM = 3.8;
+const MOMENTUM_HOURS = 6;
 
 type RuleRow = { rule_label: string; samples: number; hits: number };
 
@@ -85,6 +86,19 @@ export async function POST() {
       )
     `).bind(now, market.usdOz, market.usdCny, market.cnyGram, now - 60_000).run();
 
+    const momentumSnapshot = await db.prepare(`
+      SELECT captured_at, cny_gram
+      FROM price_snapshots
+      WHERE captured_at <= ?
+      ORDER BY captured_at DESC
+      LIMIT 1
+    `).bind(now - MOMENTUM_HOURS * 60 * 60 * 1_000).first<{ captured_at: number; cny_gram: number }>();
+
+    const marketMomentum = momentumSnapshot ? {
+      changeCnyGram: market.cnyGram - Number(momentumSnapshot.cny_gram),
+      hours: Math.max(1, Math.round((now - Number(momentumSnapshot.captured_at)) / 3_600_000)),
+    } : null;
+
     await db.prepare(`
       UPDATE predictions
       SET settled_at = ?,
@@ -137,7 +151,7 @@ export async function POST() {
     }
 
     const dashboard = await getDashboard(db, await getRuleStats(db));
-    return Response.json({ market, items, ...dashboard }, { headers: { 'Cache-Control': 'no-store' } });
+    return Response.json({ market, marketMomentum, items, ...dashboard }, { headers: { 'Cache-Control': 'no-store' } });
   } catch (error) {
     console.error('training refresh failed', error);
     return Response.json({ error: 'training_unavailable' }, { status: 503 });

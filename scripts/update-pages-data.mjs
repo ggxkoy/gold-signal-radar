@@ -53,6 +53,12 @@ async function news() {
 const old = JSON.parse(await readFile(DATA_PATH, 'utf8'));
 const [current, items] = await Promise.all([market(), news()]);
 const now = Date.now();
+const previousHistory = Array.isArray(old.priceHistory) ? old.priceHistory : [];
+const seedHistory = old.market?.cnyGram ? [{ capturedAt: Date.parse(old.updatedAt || old.market.updatedAt), cnyGram: old.market.cnyGram }] : [];
+const priceHistory = [...seedHistory, ...previousHistory, { capturedAt: now, cnyGram: current.cnyGram }]
+  .filter(point => Number.isFinite(point.capturedAt) && Number.isFinite(point.cnyGram) && point.capturedAt >= now - 7 * 24 * 60 * 60 * 1_000)
+  .sort((a, b) => a.capturedAt - b.capturedAt)
+  .filter((point, index, all) => index === 0 || point.capturedAt - all[index - 1].capturedAt >= 10 * 60 * 1_000);
 let predictions = (old.predictions || []).map(p => {
   if (p.settledAt || p.dueAt > now) return p;
   const move = current.cnyGram - p.entryCnyGram;
@@ -72,5 +78,5 @@ for (const item of items.slice(0, 8)) {
 }
 predictions = predictions.sort((a, b) => b.predictedAt - a.predictedAt).slice(0, 500);
 const effective = predictions.filter(p => p.settledAt && p.correct != null), neutral = predictions.filter(p => p.settledAt && p.correct == null).length, hits = effective.filter(p => p.correct).length;
-const output = { updatedAt: new Date().toISOString(), market: current, summary: { total: predictions.length, pending: predictions.filter(p => !p.settledAt).length, settled: effective.length, neutral, hits, accuracy: effective.length ? hits / effective.length : null, minimumMoveCnyGram: MIN_MOVE }, ruleStats, predictions, items };
+const output = { updatedAt: new Date().toISOString(), market: current, priceHistory, summary: { total: predictions.length, pending: predictions.filter(p => !p.settledAt).length, settled: effective.length, neutral, hits, accuracy: effective.length ? hits / effective.length : null, minimumMoveCnyGram: MIN_MOVE }, ruleStats, predictions, items };
 await writeFile(DATA_PATH, `${JSON.stringify(output)}\n`);
