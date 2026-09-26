@@ -24,6 +24,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Check quantitative engine
+        run: node --test tests/quant-engine.test.mjs
       - name: Refresh market, news, and prediction ledger
         if: github.event_name != 'push'
         run: node scripts/update-pages-data.mjs
@@ -32,7 +34,7 @@ jobs:
         run: |
           git config user.name "gold-signal-bot"
           git config user.email "actions@users.noreply.github.com"
-          git add mirror-site/data.json
+          git add mirror-site/data.json mirror-site/history.json mirror-site/quant-state.json
           git diff --cached --quiet || git commit -m "data: refresh gold signals"
           git push
       - uses: actions/configure-pages@v5

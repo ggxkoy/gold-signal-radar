@@ -1,82 +1,48 @@
-import { createHash } from 'node:crypto';
-import { readFile, writeFile } from 'node:fs/promises';
+import { readFile, writeFile, rename } from 'node:fs/promises';
+import { DEFAULTS, VERSION, DAY, pointsOf, isFresh, newAccount, stepAccount, advanceForecasts, forecastMetrics, auditLegacy, newsSnapshot } from '../mirror-site/quant-engine.mjs';
 
-const DATA_PATH = new URL('../mirror-site/data.json', import.meta.url);
-const HORIZON_MS = 24 * 60 * 60 * 1000;
-const MIN_MOVE = 3.8;
-const FEEDS = [
-  ['Federal Reserve', 'https://www.federalreserve.gov/feeds/press_all.xml'],
-  ['FXStreet', 'https://www.fxstreet.com/rss/news'],
-  ['MarketWatch', 'https://www.marketwatch.com/rss/topstories'],
-  ['WSJ Markets', 'https://feeds.a.dj.com/rss/RSSMarketsMain.xml'],
-  ['Investing.com', 'https://www.investing.com/rss/news_285.rss'],
-];
-const RELEVANT = /gold|bullion|xau|federal reserve|\bfed\b|rate cut|rate hike|interest rate|yield|inflation|\bcpi\b|dollar|central bank|geopolit|war|conflict|sanction|tariff|recession/i;
-const RULES = [
-  ['降息预期', '涨', 3, /rate cuts?|dovish|yields? (?:fall|drop|retreat)|降息|鸽派|宽松/i],
-  ['美元走弱', '涨', 3, /dollar (?:falls|weakens|slides)|美元(?:下跌|走弱|回落)/i],
-  ['央行购金', '涨', 4, /central banks? (?:buy|add|boost).{0,20}gold|央行(?:增持|购买|买入|购金)/i],
-  ['避险升温', '涨', 3, /war|conflict escalat|sanctions?|geopolit|recession|战争|冲突升级|制裁|地缘政治|衰退/i],
-  ['通胀升温', '涨', 2, /inflation (?:rises|heats|accelerates|above)|通胀(?:上升|升温|超预期|反弹)/i],
-  ['加息预期', '跌', 3, /rate hikes?|hawkish|yields? (?:rise|climb|jump)|加息|鹰派|紧缩/i],
-  ['降息预期降温', '跌', 4, /rate.?cut (?:bets|odds|expectations) (?:fall|fade)|delay(?:ed)? rate cuts?|下调(?:美联储)?降息|推迟降息/i],
-  ['美元走强', '跌', 3, /dollar (?:rises|strengthens|gains)|美元(?:上涨|走强)/i],
-  ['风险缓和', '跌', 3, /ceasefire|peace deal|conflict eases|soft landing|停火|和平协议|冲突缓和|软着陆/i],
-  ['通胀降温', '跌', 2, /inflation (?:falls|cools|below)|通胀(?:下降|降温|低于预期)/i],
-];
-
-function decodeXml(value) {
-  return value.replaceAll('<![CDATA[', '').replaceAll(']]>', '').replaceAll('&amp;', '&').replaceAll('&quot;', '"').replaceAll('&#39;', "'").replaceAll('&lt;', '<').replaceAll('&gt;', '>').replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16))).replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(parseInt(d, 10)));
+const base=new URL('../mirror-site/',import.meta.url);
+const offline=process.argv.includes('--offline');
+async function read(name,fallback){try{return JSON.parse(await readFile(new URL(name,base),'utf8'));}catch(e){if(e.code==='ENOENT')return fallback;throw e;}}
+async function save(name,data){const dest=new URL(name,base),temp=new URL(`${name}.tmp`,base);await writeFile(temp,`${JSON.stringify(data)}\n`);await rename(temp,dest);}
+async function request(url){const r=await fetch(url,{headers:{'User-Agent':'GoldSignalRadar/2.0'},signal:AbortSignal.timeout(15000)});if(!r.ok)throw new Error(`HTTP ${r.status}`);return r;}
+async function market(){
+  const[g,f]=await Promise.all([request('https://api.gold-api.com/price/XAU').then(r=>r.json()),request('https://open.er-api.com/v6/latest/USD').then(r=>r.json())]);
+  if(!(g.price>0&&f.rates?.CNY>0)||!Number.isFinite(Date.parse(g.updatedAt)))throw new Error('Invalid market data');
+  const fxAt=Number(f.time_last_update_unix)*1000;
+  if(!Number.isFinite(fxAt)||Date.now()-fxAt>3*DAY)throw new Error('FX data stale');
+  return {usdOz:g.price,usdCny:f.rates.CNY,cnyGram:g.price*f.rates.CNY/31.1034768,updatedAt:g.updatedAt,fxUpdatedAt:fxAt};
 }
-function tag(block, name) { return decodeXml(block.match(new RegExp(`<${name}(?:\\s[^>]*)?>([\\s\\S]*?)<\\/${name}>`, 'i'))?.[1]?.trim() || ''); }
-function date(block) { const parsed = new Date(tag(block, 'pubDate') || tag(block, 'updated') || tag(block, 'dc:date')); return Number.isNaN(parsed.getTime()) ? new Date().toISOString() : parsed.toISOString(); }
-function multiplier(samples, hits) { if (samples < 20) return 1; return Math.min(1.25, Math.max(.75, ((hits + 2) / (samples + 4)) / .5)); }
-function stats(predictions) {
-  const map = new Map();
-  predictions.filter(p => p.settledAt && p.correct != null).forEach(p => (p.factors || []).forEach(label => { const s = map.get(label) || { samples: 0, hits: 0 }; s.samples++; if (p.correct) s.hits++; map.set(label, s); }));
-  return Object.fromEntries([...map].map(([label, s]) => [label, { ...s, accuracy: s.hits / s.samples, multiplier: multiplier(s.samples, s.hits) }]));
-}
-function analyse(text, ruleStats) {
-  const hits = RULES.filter(r => r[3].test(text)).map(r => ({ label: r[0], direction: r[1], weight: r[2] * (ruleStats[r[0]]?.multiplier || 1) }));
-  const up = hits.filter(h => h.direction === '涨').reduce((s, h) => s + h.weight, 0), down = hits.filter(h => h.direction === '跌').reduce((s, h) => s + h.weight, 0), score = up - down, total = up + down;
-  return { hits, direction: score >= 0 ? '涨' : '跌', score, strength: total ? Math.min(90, Math.round(20 + Math.abs(score) / total * 48 + Math.min(total, 12) * 1.8)) : 0 };
-}
-async function market() {
-  const [g, f] = await Promise.all([fetch('https://api.gold-api.com/price/XAU').then(r => r.json()), fetch('https://open.er-api.com/v6/latest/USD').then(r => r.json())]);
-  return { usdOz: g.price, usdCny: f.rates.CNY, cnyGram: g.price * f.rates.CNY / 31.1034768, updatedAt: g.updatedAt };
-}
-async function news() {
-  const settled = await Promise.allSettled(FEEDS.map(async ([source, url]) => { const xml = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0 GoldSignal/1.0' } }).then(r => { if (!r.ok) throw new Error(`${source} ${r.status}`); return r.text(); }); return [...xml.matchAll(/<item>([\s\S]*?)<\/item>/gi)].map(m => ({ title: tag(m[1], 'title').replace(/<[^>]+>/g, ''), link: tag(m[1], 'link'), publishedAt: date(m[1]), source })); }));
-  return settled.flatMap(r => r.status === 'fulfilled' ? r.value : []).filter(x => x.title && x.link && RELEVANT.test(x.title)).sort((a, b) => Date.parse(b.publishedAt) - Date.parse(a.publishedAt)).slice(0, 16);
+const FEEDS=[['Federal Reserve','https://www.federalreserve.gov/feeds/press_all.xml'],['FXStreet','https://www.fxstreet.com/rss/news'],['MarketWatch','https://www.marketwatch.com/rss/topstories'],['WSJ Markets','https://feeds.a.dj.com/rss/RSSMarketsMain.xml'],['Investing.com','https://www.investing.com/rss/news_285.rss']];
+const relevant=/\b(?:gold|bullion|xau|fed|dollar|inflation|war|recession)\b|federal reserve|rate cut|rate hike|interest rate|yields?|central bank|geopolit|conflict|sanction|黄金|美联储|利率|美元|央行/iu;
+const decode=x=>x.replaceAll('<![CDATA[','').replaceAll(']]>','').replaceAll('&amp;','&').replaceAll('&quot;','"').replaceAll('&#39;',"'").replaceAll('&lt;','<').replaceAll('&gt;','>').replace(/&#(x[0-9a-f]+|[0-9]+);/gi,(match,s)=>{const n=parseInt(s.startsWith('x')?s.slice(1):s,s.startsWith('x')?16:10);return n<=0x10ffff?String.fromCodePoint(n):match;});
+const tag=(s,t)=>decode(s.match(new RegExp(`<${t}(?:\\s[^>]*)?>([\\s\\S]*?)<\\/${t}>`,'i'))?.[1]?.trim()||'');
+async function news(){
+  const fetched=await Promise.allSettled(FEEDS.map(async([source,url])=>{const xml=await(await request(url)).text();return [...xml.matchAll(/<item>([\s\S]*?)<\/item>/gi)].map(m=>({title:tag(m[1],'title').replace(/<[^>]+>/g,''),link:tag(m[1],'link'),publishedAt:tag(m[1],'pubDate')||tag(m[1],'updated'),source}));}));
+  const seen=new Set(),items=fetched.flatMap(x=>x.status==='fulfilled'?x.value:[]).filter(x=>{
+    const t=Date.parse(x.publishedAt),key=x.title.toLowerCase().replace(/[^\p{L}\p{N}]/gu,'');
+    if(!/^https?:\/\//i.test(x.link)||!relevant.test(x.title)||!Number.isFinite(t)||Date.now()-t>2*DAY||t>Date.now()+300000||seen.has(key))return false;
+    seen.add(key);x.publishedAt=new Date(t).toISOString();return true;
+  }).sort((a,b)=>Date.parse(b.publishedAt)-Date.parse(a.publishedAt)).slice(0,24);
+  return {items,availableFeeds:fetched.filter(x=>x.status==='fulfilled').length,totalFeeds:FEEDS.length};
 }
 
-const old = JSON.parse(await readFile(DATA_PATH, 'utf8'));
-const [current, items] = await Promise.all([market(), news()]);
-const now = Date.now();
-const previousHistory = Array.isArray(old.priceHistory) ? old.priceHistory : [];
-const seedHistory = old.market?.cnyGram ? [{ capturedAt: Date.parse(old.updatedAt || old.market.updatedAt), cnyGram: old.market.cnyGram }] : [];
-const priceHistory = [...seedHistory, ...previousHistory, { capturedAt: now, cnyGram: current.cnyGram }]
-  .filter(point => Number.isFinite(point.capturedAt) && Number.isFinite(point.cnyGram) && point.capturedAt >= now - 7 * 24 * 60 * 60 * 1_000)
-  .sort((a, b) => a.capturedAt - b.capturedAt)
-  .filter((point, index, all) => index === 0 || point.capturedAt - all[index - 1].capturedAt >= 10 * 60 * 1_000);
-let predictions = (old.predictions || []).map(p => {
-  if (p.settledAt || p.dueAt > now) return p;
-  const move = current.cnyGram - p.entryCnyGram;
-  if (move >= MIN_MOVE) return { ...p, settledAt: now, exitCnyGram: current.cnyGram, actualDirection: '涨', correct: p.predictedDirection === '涨', status: p.predictedDirection === '涨' ? '命中' : '未命中' };
-  if (move <= -MIN_MOVE) return { ...p, settledAt: now, exitCnyGram: current.cnyGram, actualDirection: '跌', correct: p.predictedDirection === '跌', status: p.predictedDirection === '跌' ? '命中' : '未命中' };
-  return { ...p, settledAt: now, exitCnyGram: current.cnyGram, actualDirection: '震荡', correct: null, status: '震荡' };
-});
-const ruleStats = stats(predictions);
-const known = new Set(predictions.map(p => p.fingerprint));
-for (const item of items.slice(0, 8)) {
-  const fingerprint = createHash('sha256').update(`24:${item.link}`).digest('hex');
-  if (known.has(fingerprint)) continue;
-  const signal = analyse(item.title, ruleStats);
-  if (!signal.hits.length || signal.strength < 40) continue;
-  predictions.push({ fingerprint, headline: item.title, source: item.source, link: item.link, predictedAt: now, dueAt: now + HORIZON_MS, predictedDirection: signal.direction, signalStrength: signal.strength, entryCnyGram: current.cnyGram, settledAt: null, exitCnyGram: null, actualDirection: null, correct: null, factors: signal.hits.map(h => h.label), status: '等待' });
-  known.add(fingerprint);
-}
-predictions = predictions.sort((a, b) => b.predictedAt - a.predictedAt).slice(0, 500);
-const effective = predictions.filter(p => p.settledAt && p.correct != null), neutral = predictions.filter(p => p.settledAt && p.correct == null).length, hits = effective.filter(p => p.correct).length;
-const output = { updatedAt: new Date().toISOString(), market: current, priceHistory, summary: { total: predictions.length, pending: predictions.filter(p => !p.settledAt).length, settled: effective.length, neutral, hits, accuracy: effective.length ? hits / effective.length : null, minimumMoveCnyGram: MIN_MOVE }, ruleStats, predictions, items };
-await writeFile(DATA_PATH, `${JSON.stringify(output)}\n`);
+const old=await read('data.json',{});let history=await read('history.json',[]);
+let current=old.market,feed={items:old.items||[],availableFeeds:null,totalFeeds:5},marketError=null;
+if(!offline){const results=await Promise.allSettled([market(),news()]);if(results[0].status==='fulfilled')current=results[0].value;else marketError=String(results[0].reason);if(results[1].status==='fulfilled')feed=results[1].value;}
+const now=Date.now();
+if(!current)throw new Error('No market data available');
+const fresh=isFresh({cnyGram:current.cnyGram,quoteAt:Date.parse(current.updatedAt)},now);
+if(fresh&&!offline&&!marketError)history.push({capturedAt:now,quoteAt:Date.parse(current.updatedAt),cnyGram:current.cnyGram,usdOz:current.usdOz,usdCny:current.usdCny});
+history=pointsOf(history);
+let quant=await read('quant-state.json',null);
+if(!quant)quant={version:VERSION,startedAt:now,account:newAccount(DEFAULTS,now),forecasts:[]};
+if(quant.version!==VERSION)throw new Error('Strategy version changed: explicitly migrate account before running');
+if(!offline&&!marketError&&fresh)quant.forecasts=advanceForecasts(quant.forecasts,history,feed.items,now);
+const postStart=history.filter(p=>p.capturedAt>=quant.startedAt);
+if(postStart.length&&fresh)quant.account=stepAccount(quant.account,history,now);
+quant.updatedAt=now;
+const snapshot=newsSnapshot(feed.items,now);
+const output={...old,updatedAt:new Date(now).toISOString(),market:current,priceHistory:history.filter(p=>now-p.capturedAt<7*DAY),items:feed.items,legacyAudit:auditLegacy(old.predictions||[]),evaluation:forecastMetrics(quant.forecasts),feedHealth:{available:feed.availableFeeds,total:feed.totalFeeds,matched:snapshot.items.length},dataHealth:{fresh,marketError,quoteAt:Date.parse(current.updatedAt)},engineVersion:VERSION};
+await save('history.json',history);await save('quant-state.json',quant);await save('data.json',output);
+console.log(JSON.stringify({observations:history.length,fresh,marketError,forecasts:quant.forecasts.length,paperTrades:quant.account.trades.length,offline}));

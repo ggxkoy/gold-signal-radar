@@ -1,72 +1,36 @@
 <!doctype html>
 <html lang="zh-CN">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#181713">
-  <title>金价雷达 · 大陆访问版</title>
-  <meta name="description" content="人民币金价、宏观新闻和可验证的24小时涨跌预测。">
-  <link rel="icon" href="icon.svg">
-  <link rel="stylesheet" href="styles.css">
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#181713"><title>金价雷达 · 量化实验室</title>
+  <meta name="description" content="人民币黄金的规则化观察、历史模拟与持续纸面交易，按真实样本验证信号。">
+  <link rel="icon" href="icon.svg"><link rel="stylesheet" href="styles.css?v=q1">
 </head>
 <body>
-  <main class="shell">
-    <header><div class="brand"><span class="brand-mark">Au</span><div><b>金价雷达</b><small>GOLD SIGNAL · 大陆访问版</small></div></div><span class="online"><i></i>监测中</span></header>
-
-    <section class="hero-grid">
-      <article class="price-card">
-        <div class="eyebrow">AU / CNY · 人民币金价</div>
-        <div class="price-line"><strong id="cnyPrice">—</strong><span>元/克</span></div>
-        <p id="priceDetail">正在连接实时价格…</p>
-        <button id="refresh" aria-label="刷新">↻</button>
-      </article>
-      <article class="signal-card">
-        <div><span class="eyebrow">当前规则信号</span><small>不是准确率</small></div>
-        <div class="signal-row"><strong id="direction" class="up">涨</strong><div><b id="strength">0</b><small>规则强度 / 100</small></div></div>
-      </article>
-    </section>
-
-    <section class="panel sentiment-panel">
-      <div class="sentiment-copy">
-        <div class="sentiment-title"><h2>黄金市场情绪</h2><span class="pill">不是准确率</span></div>
-        <div class="sentiment-value"><strong id="sentimentLabel">中性</strong><span id="sentimentScore">0 / 100</span></div>
-        <p id="sentimentConfidence">置信度较低 · 数据积累中</p>
-      </div>
-      <div class="sentiment-detail">
-        <div class="sentiment-meter" aria-label="市场情绪从偏空到偏多"><i></i><b id="sentimentMarker" style="left:50%"></b></div>
-        <div class="meter-labels"><span>偏空</span><span>中性</span><span>偏多</span></div>
-        <div class="sentiment-parts">
-          <div><small>宏观新闻</small><b id="macroScore">0</b></div>
-          <div><small>避险/资金</small><b id="riskScore">0</b></div>
-          <div><small>价格动量</small><b id="momentumScore">0</b></div>
-        </div>
-        <p id="sentimentDrivers" class="sentiment-drivers">主要驱动：暂无方向一致的有效信号</p>
-      </div>
-    </section>
-
-    <section class="work-grid">
-      <article class="panel">
-        <h2>输入一条可能影响金价的新闻</h2>
-        <textarea id="newsInput" rows="5">美国非农就业低于预期，市场上调美联储降息押注，美元指数回落。</textarea>
-        <div class="examples"><button data-example="美国非农就业低于预期，市场上调美联储降息押注，美元指数回落。">示例 1</button><button data-example="美国通胀超预期反弹，美债收益率走高，市场下调降息预期。">示例 2</button></div>
-      </article>
-      <article class="panel">
-        <div class="panel-title"><div><span class="eyebrow">方向拆解</span><p id="scoreline">利多 0 · 利空 0</p></div><span id="netScore" class="pill">净分 0</span></div>
-        <div id="factors" class="factor-list"></div>
-        <p class="notice">规则信号只反映新闻的第一阶影响，不构成投资建议。</p>
-      </article>
-    </section>
-
-    <section class="panel lab">
-      <div class="lab-head"><div><h2>准确度实验室 <span class="pill">24小时结算</span></h2><p>每克上涨 ≥¥3.8 才算涨，下跌 ≤−¥3.8 才算跌；中间全部记为震荡，不进入命中率。</p></div><span class="warming">样本积累中</span></div>
-      <div class="metrics"><div><small>已结算</small><b id="settled">0</b><span>最低观察 30</span></div><div><small>真实命中率</small><b id="accuracy">待结算</b><span id="hitRatio">尚无到期样本</span></div><div><small>待结算</small><b id="pending">0</b><span>自动写入台账</span></div><div><small>震荡剔除</small><b id="neutral">0</b><span>幅度小于 ¥3.8</span></div></div>
-      <h3>最近预测台账</h3><div id="ledger" class="ledger"></div>
-    </section>
-
-    <section class="news-section"><div class="section-head"><div><h2>实时相关新闻</h2><p id="dataTime">数据更新中…</p></div></div><div id="newsList" class="news-grid"></div></section>
-
-    <footer>训练口径：人民币/克 · 24小时 · ±¥3.8 死区<br>静态镜像约每15分钟更新新闻与预测，金价每2分钟刷新。</footer>
-  </main>
-  <script src="app.js" defer></script>
-</body>
-</html>
+<main class="shell">
+  <header><div class="brand"><span class="brand-mark">Au</span><div><b>金价雷达</b><small>量化实验室 · Q1</small></div></div><div class="header-tools"><span class="pill">模拟交易</span><button id="refresh" type="button">刷新</button></div></header>
+  <div id="notice" class="banner" role="status">正在读取行情与策略记录…</div>
+  <section class="hero-grid">
+    <article class="price-card"><p class="eyebrow">国际现货折算 · 人民币/克</p><div class="price-line"><strong id="cnyPrice">—</strong><span>元/克</span></div><p id="priceDetail">等待有效报价</p><p id="thresholdDistance">关注线 ¥930.00/克</p><small>实际积存金、ETF成交价及费用可能不同</small></article>
+    <article class="panel decision"><div class="panel-title"><h1>现在该做什么</h1><span id="signalStatus" class="pill">等待数据</span></div><strong id="decisionTitle" class="decision-title">读取中</strong><p id="decisionReason">正在计算策略条件</p><ul id="entryChecks" class="checks"></ul><p class="meta">当前模拟：低价回升确认 · 只做多 · 无杠杆。930是待验证的关注参数，不是已证明的底部。</p></article>
+  </section>
+  <section class="panel section"><div class="panel-title"><div><h2>自动模拟账户</h2><p class="meta" id="paperStart">从上线后开始记录，不回填历史盈利</p></div><span id="paperPosition" class="pill">未持仓</span></div>
+    <div class="metrics"><div><small>净值 / 虚拟本金</small><b id="paperEquity">—</b><span id="paperCapital">—</span></div><div><small>累计收益（含成本）</small><b id="paperReturn">—</b><span id="paperFees">—</span></div><div><small>最大回撤</small><b id="paperDrawdown">—</b><span>按已观察报价估算</span></div><div><small>已完成交易</small><b id="paperTrades">0</b><span id="paperWinRate">待积累</span></div></div>
+    <p id="positionDetail" class="position-detail">等待账户记录</p><div class="table-wrap"><table><caption>最近模拟成交</caption><thead><tr><th>北京时间</th><th>操作</th><th>价格 / 克</th><th>克数</th><th>原因</th></tr></thead><tbody id="paperLedger"></tbody></table></div>
+    <details><summary>查看固定交易规则与风险限额</summary><p>虚拟本金1万元；价格低于930、较约6小时前反弹至少3.8元/克且高于24小时快照均价时，下一笔有效报价模拟买入。下一报价等待超过6小时或超出入场范围则取消。单次仓位上限25%，计划止损风险预算0.5%。</p><p>止损距离取2%与7.6元/克中的较大值，止盈距离为止损距离的1.5倍，最长持有10天。单边手续费暂按0.10%、滑点0.05%计算。止损在下一次采到的价格执行，跳空与采样延迟可能扩大亏损。</p><p>账户参数固定，历史回放的参数修改只在当前页面生效。此处是公开演示账户，没有连接券商或银行。</p></details>
+  </section>
+  <section class="panel section"><div class="panel-title"><div><h2>历史回放</h2><p class="meta">用实际采集的报价检查策略，不补造缺失行情</p></div><span class="pill">探索性模拟</span></div>
+    <form id="replayForm" class="parameters"><label>虚拟本金（元）<input id="capital" type="number" min="100" max="10000000" step="100" value="10000" required></label><label>买入关注线（元/克）<input id="buyBelow" type="number" min="1" max="10000" step="0.1" value="930" required></label><label>单边手续费（%）<input id="fee" type="number" min="0" max="2" step="0.01" value="0.10" required></label><label>单边滑点（%）<input id="slippage" type="number" min="0" max="2" step="0.01" value="0.05" required></label><button type="submit">重新回放</button></form>
+    <p id="historyQuality" class="banner">历史数据读取中</p>
+    <div class="metrics"><div><small>策略净收益</small><b id="replayReturn">—</b><span id="replayCost">含双边成本</span></div><div><small>25%仓位持有基线</small><b id="benchmark">—</b><span>25%买入持有，75%现金；策略仓位可能更低</span></div><div><small>策略最大回撤</small><b id="replayDrawdown">—</b><span>仅观测点，不含未知盘中低点</span></div><div><small>已完成交易 / 胜率</small><b id="replayTrades">—</b><span id="replayWinRate">—</span></div></div>
+    <div class="chart-head"><span>账户净值 · 元</span><span><i class="legend strategy"></i>策略 <i class="legend baseline"></i>25%仓位持有</span></div><svg id="equityChart" viewBox="0 0 1000 220" role="img" aria-label="历史策略与25%仓位持有净值曲线"></svg><div id="chartDates" class="chart-dates"></div>
+    <p id="replayVerdict" class="notice"></p><div class="table-wrap"><table><caption>历史模拟交易</caption><thead><tr><th>入场 / 退出日期</th><th>入场价</th><th>退出价</th><th>净损益</th><th>退出原因</th></tr></thead><tbody id="replayLedger"></tbody></table></div>
+  </section>
+  <section class="panel section"><div class="panel-title"><div><h2>新规则的前向验证</h2><p class="meta">每24小时最多记录一次；报价不足或新闻冲突时可观望。此模块独立检验新闻预测，尚不用于模拟账户下单。</p></div><span class="pill">±3.8元/克</span></div><div class="metrics"><div><small>有效方向命中率</small><b id="forecastAccuracy">待验证</b><span id="forecastSamples">0个有效样本</span></div><div><small>全部到期命中率</small><b id="forecastAll">—</b><span>震荡也计入分母</span></div><div><small>出手覆盖率</small><b id="forecastCoverage">—</b><span id="forecastMade">—</span></div><div><small>缺失到期报价</small><b id="forecastExpired">0</b><span>超时样本不冒充24小时结算</span></div></div>
+    <p id="forecastStatus" class="notice"></p><div id="forecastLedger" class="ledger"></div><details><summary>查看旧版审计和新验证口径</summary><p id="legacyAudit">旧记录保留中</p><p>旧版存在英文关键词误判、重复新闻和延迟结算。新版本不重算旧记录来宣称准确率提高：新闻按发布时间、标题去重；价格动量须与至少两个来源的明确新闻一致；不再自动根据少量样本调整权重。</p><p>新预测在24小时到期后的1小时内寻找第一笔有效报价，否则标记缺失。涨跌不足3.8元记为震荡，同时显示“有效方向命中率”和包含震荡的“全部到期命中率”。上线后的表现与历史回放分开保存。</p></details>
+  </section>
+  <section class="work-grid section"><article class="panel"><h2>检查一条新闻</h2><label class="meta" for="newsInput">粘贴标题或摘要，查看明确的方向因素</label><textarea id="newsInput" rows="3" placeholder="例如：降息预期升温，美元指数回落。"></textarea><p id="newsSignal">未输入新闻</p><div id="factors" class="ledger"></div></article><article class="panel"><h2>当前新闻倾向</h2><strong id="sentimentLabel" class="decision-title">等待数据</strong><p id="sentimentDrivers"></p><p id="newsCoverage" class="meta"></p><p class="notice">公开新闻关键词提供辅助线索。语义复杂或未命中时观望；这里的多空票数不是上涨概率。</p></article></section>
+  <section class="section"><div class="panel-title"><h2>相关财经新闻</h2><span id="dataTime" class="meta"></span></div><div id="newsList" class="news-grid"></div></section>
+  <footer><p>Gold API现货金 × ExchangeRate-API汇率 ÷ 31.1034768 = 人民币/克。定时采集可能延迟，以源报价时间为准。</p><p>报价尝试每2分钟刷新，自动账户随后台采集更新；页面刷新不会执行交易。规则版本 <span id="engineVersion">Q1</span> · <a href="https://github.com/ggxkoy/gold-signal-radar" target="_blank" rel="noreferrer">GitHub</a></p></footer>
+</main><script type="module" src="app.js?v=q1"></script>
+</body></html>
